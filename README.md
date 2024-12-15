@@ -24,3 +24,10 @@ Streamlit arayüz dosyası. Burada:
 Kullanıcıdan gerekli girdiler alınır (ürün, tarih aralığı, vb.)
 Bir butonla run_mrp() çağrılır
 Sonuç tabloları ekrana yazdırılır.
+
+---
+
+Gerekli adımlar
+Kurulum bilgileri
+Çalıştırma komutları (ör. streamlit run ui.py)
+Testin nasıl yapılacağı vb.
