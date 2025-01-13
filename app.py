@@ -47,7 +47,7 @@ def show_existing_tables():
 def main():
     st.title("MRP Project")
     st.markdown("### *Eylül Rana Öztekin*")
-    st.markdown("## *2019402126*")
+    st.markdown("#### *2019402126*")
 
     # Ensure DB is initialized
     init_db_if_needed()
