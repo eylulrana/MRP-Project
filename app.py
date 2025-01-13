@@ -1,52 +1,96 @@
 # app.py
 import streamlit as st
 import pandas as pd
-from db import run_query
+from db import run_query, execute_script_from_file
+
+def init_db_if_needed():
+    """
+    Checks if the 'Product' table exists. If it doesn't,
+    we assume the database is empty and execute create_tables.sql.
+    This is helpful in ephemeral environments like Streamlit Cloud.
+    """
+    check = run_query("SELECT name FROM sqlite_master WHERE type='table' AND name='Product';")
+    if len(check) == 0:
+        # Tables not found, create them from the script
+        execute_script_from_file("sql/create_tables.sql")
+        st.info("Database tables have been created.")
+
+def show_existing_tables():
+    """
+    Fetch and display a list of all existing tables, 
+    then for each table, show the data in a dataframe if available.
+    """
+    st.markdown("#### Existing Tables and Their Data")
+    tables = run_query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;")
+    if tables:
+        for t in tables:
+            table_name = t[0]
+            st.subheader(f"Table: {table_name}")
+            # Get columns info
+            col_info = run_query(f"PRAGMA table_info({table_name});")
+            col_names = [c[1] for c in col_info]
+            # Fetch data
+            data = run_query(f"SELECT * FROM {table_name}")
+            if data:
+                df = pd.DataFrame(data, columns=col_names)
+                st.dataframe(df)
+            else:
+                st.write("No data in this table.")
+    else:
+        st.write("No tables found in the database.")
 
 def main():
-    st.title("Geliştirilmiş MRP Sistemi - Streamlit Arayüz")
+    st.title("Enhanced MRP System - Streamlit Interface")
+
+    # Ensure DB is initialized
+    init_db_if_needed()
 
     menu = [
-        "Ana Sayfa",
-        "Plan Yönetimi",
-        "Period Yönetimi",
-        "Product Yönetimi",
-        "BOM Yönetimi",
+        "Home",
+        "Plan Management",
+        "Period Management",
+        "Product Management",
+        "BOM Management",
         "Demand/Inventory",
-        "MRP Hesaplama",
-        "Hakkında"
+        "MRP Calculation",
+        "About"
     ]
-    choice = st.sidebar.selectbox("Menü", menu)
+    choice = st.sidebar.selectbox("Menu", menu)
 
-    # -----------------------------------------
-    # 1) ANA SAYFA
-    # -----------------------------------------
-    if choice == "Ana Sayfa":
-        st.write("Hoş geldiniz!")
+    # -------------------------------------------------------------------
+    # HOME PAGE
+    # -------------------------------------------------------------------
+    if choice == "Home":
+        st.write("Welcome to the MRP System!")
         st.markdown("""
-        Bu arayüz üzerinden MRP sistemi tablolarına veri girişi yapabilir, mevcut verileri görüntüleyebilir **ve hatta düzenleyebilirsiniz**.
-        - **Plan Yönetimi**: Plan oluşturma / düzenleme
-        - **Period Yönetimi**: Dönem ekleme / görüntüleme
-        - **Product Yönetimi**: Ürün ekleme / düzenleme, lot size, stok vb.
-        - **BOM Yönetimi**: Ürün ağacı tanımları
-        - **Demand/Inventory**: Talep ve stok değerleri (Gross Req vb.)
-        - **MRP Hesaplama**: Basit MRP sorgularını (Net Requirement, Planned Orders) tetikleyip sonuçları tablo olarak inceleme
+        This interface allows you to manage and explore the database
+        for a simple Material Requirements Planning (MRP) application.
+        
+        - **Plan Management**: Create or update Plans.
+        - **Period Management**: Manage time Periods for each Plan.
+        - **Product Management**: Create or update Products (finished goods, raw materials, etc.).
+        - **BOM Management**: Define Bill of Materials relationships (Parent-Child).
+        - **Demand/Inventory**: Manage demand and stock data (Gross Requirements, Net Requirement, etc.).
+        - **MRP Calculation**: Perform simple MRP logic (lot-for-lot).
+        
+        Below, you can see the existing tables and any data they contain.
         """)
+        show_existing_tables()
 
-    # -----------------------------------------
-    # 2) PLAN YÖNETİMİ
-    # -----------------------------------------
-    elif choice == "Plan Yönetimi":
-        st.subheader("Plan Tablosu Yönetimi")
+    # -------------------------------------------------------------------
+    # PLAN MANAGEMENT
+    # -------------------------------------------------------------------
+    elif choice == "Plan Management":
+        st.subheader("Plan Management")
 
-        # Plan Ekleme
+        # Form to add a new plan
         with st.form("plan_form"):
-            st.write("### Yeni Plan Ekle")
-            plan_name = st.text_input("Plan Adı")
-            start_date = st.text_input("Plan Başlangıç Tarihi (YYYY-MM-DD)")
-            period_type = st.text_input("Period Tipi (Örn: 'Haftalık')")
-            planning_horizon = st.number_input("Plan Horizon", min_value=1, value=12)
-            submitted = st.form_submit_button("Kaydet")
+            st.write("### Add a New Plan")
+            plan_name = st.text_input("Plan Name")
+            start_date = st.text_input("Start Date (YYYY-MM-DD)")
+            period_type = st.text_input("Period Type (e.g. 'Weekly')")
+            planning_horizon = st.number_input("Planning Horizon", min_value=1, value=12)
+            submitted = st.form_submit_button("Add Plan")
 
         if submitted:
             if plan_name and start_date and period_type:
@@ -55,61 +99,62 @@ def main():
                 VALUES (?, ?, ?, ?)
                 """
                 run_query(insert_query, (plan_name, start_date, period_type, planning_horizon))
-                st.success(f"'{plan_name}' adlı plan eklendi.")
+                st.success(f"Plan '{plan_name}' has been added.")
             else:
-                st.warning("Lütfen tüm alanları doldurunuz.")
+                st.warning("Please fill in all fields.")
 
-        # Mevcut Planlar
-        st.write("### Mevcut Planlar")
+        # Display existing Plans
+        st.write("### Existing Plans")
         plan_rows = run_query("SELECT PlanID, PlanName, StartDate, PeriodType, PlanningHorizon FROM Plan;")
-        df_plan = pd.DataFrame(plan_rows, columns=["PlanID", "PlanName", "StartDate", "PeriodType", "PlanningHorizon"])
+        df_plan = pd.DataFrame(plan_rows, columns=["PlanID", "PlanName", "StartDate", "PeriodType", "Horizon"])
         st.dataframe(df_plan)
 
-        # Plan Güncelleme
-        st.write("### Plan Güncelle")
-        if len(df_plan) > 0:
+        # Update an existing Plan
+        st.write("### Update a Plan")
+        if not df_plan.empty:
             plan_ids = df_plan["PlanID"].tolist()
-            selected_plan_id = st.selectbox("Güncellenecek Plan ID", plan_ids)
+            selected_plan_id = st.selectbox("Select Plan ID to Update", plan_ids)
             if selected_plan_id:
-                # Seçilen planın mevcut değerlerini al
-                plan_data = run_query("SELECT PlanName, StartDate, PeriodType, PlanningHorizon FROM Plan WHERE PlanID=?", (selected_plan_id,))
-                if plan_data:
-                    current_name, current_start, current_type, current_horizon = plan_data[0]
+                current = run_query(
+                    "SELECT PlanName, StartDate, PeriodType, PlanningHorizon FROM Plan WHERE PlanID=?",
+                    (selected_plan_id,)
+                )
+                if current:
+                    cur_name, cur_start, cur_type, cur_horizon = current[0]
+                    new_name = st.text_input("New Plan Name", value=cur_name)
+                    new_start = st.text_input("New Start Date", value=cur_start)
+                    new_type = st.text_input("New Period Type", value=cur_type)
+                    new_horizon = st.number_input("New Planning Horizon", min_value=1, value=cur_horizon)
 
-                    new_name = st.text_input("Yeni Plan Adı", value=current_name)
-                    new_start = st.text_input("Yeni Başlangıç Tarihi", value=current_start)
-                    new_type = st.text_input("Yeni Period Tipi", value=current_type)
-                    new_horizon = st.number_input("Yeni Horizon", min_value=1, value=current_horizon)
-
-                    if st.button("Plan Güncelle"):
+                    if st.button("Update Plan"):
                         update_query = """
                         UPDATE Plan
-                        SET PlanName = ?, StartDate = ?, PeriodType = ?, PlanningHorizon = ?
-                        WHERE PlanID = ?
+                        SET PlanName=?, StartDate=?, PeriodType=?, PlanningHorizon=?
+                        WHERE PlanID=?
                         """
                         run_query(update_query, (new_name, new_start, new_type, new_horizon, selected_plan_id))
-                        st.success("Plan başarıyla güncellendi.")
+                        st.success("Plan updated successfully.")
                         st.experimental_rerun()
 
-    # -----------------------------------------
-    # 3) PERIOD YÖNETİMİ
-    # -----------------------------------------
-    elif choice == "Period Yönetimi":
-        st.subheader("Period Tablosu Yönetimi")
+    # -------------------------------------------------------------------
+    # PERIOD MANAGEMENT
+    # -------------------------------------------------------------------
+    elif choice == "Period Management":
+        st.subheader("Period Management")
 
-        # Plan ID'leri için selectbox
+        # Retrieve existing plans
         plan_rows = run_query("SELECT PlanID, PlanName FROM Plan;")
-        plan_dict = {f"{r[1]} (ID:{r[0]})": r[0] for r in plan_rows}
+        plan_dict = {f"{p[1]} (ID: {p[0]})": p[0] for p in plan_rows}
 
         with st.form("period_form"):
-            st.write("### Yeni Period Ekle")
-            selected_plan = st.selectbox("Hangi Plan?", list(plan_dict.keys()))
-            period_seq = st.number_input("Period Sırası", min_value=1, value=1)
-            start_date = st.text_input("Period Başlangıç Tarihi (YYYY-MM-DD)")
-            end_date = st.text_input("Period Bitiş Tarihi (YYYY-MM-DD)")
-            period_submitted = st.form_submit_button("Kaydet")
+            st.write("### Add a New Period")
+            selected_plan = st.selectbox("Select Plan", list(plan_dict.keys()))
+            period_seq = st.number_input("Period Sequence", min_value=1, value=1)
+            start_date = st.text_input("Start Date (YYYY-MM-DD)")
+            end_date = st.text_input("End Date (YYYY-MM-DD)")
+            submitted = st.form_submit_button("Add Period")
 
-        if period_submitted:
+        if submitted:
             plan_id = plan_dict[selected_plan]
             if start_date and end_date:
                 insert_query = """
@@ -117,140 +162,138 @@ def main():
                 VALUES (?, ?, ?, ?)
                 """
                 run_query(insert_query, (plan_id, period_seq, start_date, end_date))
-                st.success("Period eklendi.")
+                st.success("Period has been added.")
             else:
-                st.warning("Tarih alanlarını doldurunuz.")
+                st.warning("Please fill in the date fields.")
 
-        # Mevcut Periodlar
-        st.write("### Mevcut Periodlar")
+        # Display existing Periods
+        st.write("### Existing Periods")
         rows = run_query("SELECT PeriodID, PlanID, PeriodSequence, StartDate, EndDate FROM Period;")
-        df_period = pd.DataFrame(rows, columns=["PeriodID","PlanID","PeriodSequence","StartDate","EndDate"])
+        df_period = pd.DataFrame(rows, columns=["PeriodID", "PlanID", "Sequence", "StartDate", "EndDate"])
         st.dataframe(df_period)
 
-        # Period Güncelleme (opsiyonel)
-        st.write("### Period Güncelle")
-        if len(df_period) > 0:
+        # Update a Period
+        st.write("### Update a Period")
+        if not df_period.empty:
             period_ids = df_period["PeriodID"].tolist()
-            sel_period_id = st.selectbox("Güncellenecek Period ID", period_ids)
-            if sel_period_id:
-                period_data = run_query(
+            selected_period_id = st.selectbox("Select Period ID to Update", period_ids)
+            if selected_period_id:
+                pdata = run_query(
                     "SELECT PlanID, PeriodSequence, StartDate, EndDate FROM Period WHERE PeriodID=?",
-                    (sel_period_id,)
+                    (selected_period_id,)
                 )
-                if period_data:
-                    p_plan_id, p_seq, p_start, p_end = period_data[0]
-                    # Plan adını göstermek için
-                    plan_name_for_period = run_query("SELECT PlanName FROM Plan WHERE PlanID=?", (p_plan_id,))
-                    plan_name_for_period = plan_name_for_period[0][0] if plan_name_for_period else f"PlanID:{p_plan_id}"
-                    
-                    new_seq = st.number_input("Yeni Sıra", min_value=1, value=p_seq)
-                    new_start = st.text_input("Yeni Başlangıç Tarihi", value=p_start)
-                    new_end = st.text_input("Yeni Bitiş Tarihi", value=p_end)
+                if pdata:
+                    p_planid, p_seq, p_sdate, p_edate = pdata[0]
+                    new_seq = st.number_input("New Period Sequence", min_value=1, value=p_seq)
+                    new_start = st.text_input("New Start Date", value=p_sdate)
+                    new_end = st.text_input("New End Date", value=p_edate)
 
-                    if st.button("Period Güncelle"):
-                        update_period_query = """
+                    if st.button("Update Period"):
+                        upd_query = """
                         UPDATE Period
-                        SET PeriodSequence = ?, StartDate = ?, EndDate = ?
-                        WHERE PeriodID = ?
+                        SET PeriodSequence=?, StartDate=?, EndDate=?
+                        WHERE PeriodID=?
                         """
-                        run_query(update_period_query, (new_seq, new_start, new_end, sel_period_id))
-                        st.success("Period güncellendi.")
+                        run_query(upd_query, (new_seq, new_start, new_end, selected_period_id))
+                        st.success("Period updated successfully.")
                         st.experimental_rerun()
 
-    # -----------------------------------------
-    # 4) PRODUCT YÖNETİMİ
-    # -----------------------------------------
-    elif choice == "Product Yönetimi":
-        st.subheader("Product Tablosu Yönetimi")
+    # -------------------------------------------------------------------
+    # PRODUCT MANAGEMENT
+    # -------------------------------------------------------------------
+    elif choice == "Product Management":
+        st.subheader("Product Management")
 
-        # Yeni ürün ekleme
+        # Add a new product
         with st.form("product_form"):
-            st.write("### Yeni Ürün Ekle")
-            product_name = st.text_input("Ürün Adı")
-            product_type = st.text_input("Ürün Tipi", value="FinishedGood")
+            st.write("### Add a New Product")
+            product_name = st.text_input("Product Name")
+            product_type = st.text_input("Product Type", value="FinishedGood")
             lead_time = st.number_input("Lead Time", min_value=0, value=0)
             lot_size = st.number_input("Lot Size", min_value=1, value=1)
-            on_hand = st.number_input("Mevcut Stok (OnHandInventory)", min_value=0, value=0)
-            prod_submitted = st.form_submit_button("Kaydet")
+            on_hand = st.number_input("On-Hand Inventory", min_value=0, value=0)
+            submitted = st.form_submit_button("Add Product")
 
-        if prod_submitted:
+        if submitted:
             if product_name and product_type:
-                insert_query = """
+                insert_q = """
                 INSERT INTO Product (ProductName, ProductType, LeadTime, LotSize, OnHandInventory)
                 VALUES (?, ?, ?, ?, ?)
                 """
-                run_query(insert_query, (product_name, product_type, lead_time, lot_size, on_hand))
-                st.success(f"{product_name} ürünü eklendi.")
+                run_query(insert_q, (product_name, product_type, lead_time, lot_size, on_hand))
+                st.success(f"Product '{product_name}' has been added.")
             else:
-                st.warning("Lütfen bütün alanları doldurun.")
+                st.warning("Please fill in all fields.")
 
-        # Mevcut ürünleri göster
-        st.write("### Mevcut Ürünler")
+        # Display existing products
+        st.write("### Existing Products")
         rows = run_query("SELECT ProductID, ProductName, ProductType, LeadTime, LotSize, OnHandInventory FROM Product;")
-        df_product = pd.DataFrame(rows, columns=["ProductID","ProductName","ProductType","LeadTime","LotSize","OnHand"])
-        st.dataframe(df_product)
+        df_prod = pd.DataFrame(rows, columns=["ProductID", "Name", "Type", "LeadTime", "LotSize", "OnHand"])
+        st.dataframe(df_prod)
 
-        # Ürün Güncelleme
-        st.write("### Ürün Güncelle")
-        if len(df_product) > 0:
-            product_ids = df_product["ProductID"].tolist()
-            sel_product_id = st.selectbox("Güncellenecek Ürün ID", product_ids)
-            if sel_product_id:
-                p_data = run_query("SELECT ProductName, ProductType, LeadTime, LotSize, OnHandInventory FROM Product WHERE ProductID=?", (sel_product_id,))
+        # Update a product
+        st.write("### Update a Product")
+        if not df_prod.empty:
+            product_ids = df_prod["ProductID"].tolist()
+            selected_id = st.selectbox("Select Product ID to Update", product_ids)
+            if selected_id:
+                p_data = run_query(
+                    "SELECT ProductName, ProductType, LeadTime, LotSize, OnHandInventory FROM Product WHERE ProductID=?",
+                    (selected_id,)
+                )
                 if p_data:
-                    cur_name, cur_type, cur_lead, cur_lot, cur_onhand = p_data[0]
+                    c_name, c_type, c_lead, c_lot, c_hand = p_data[0]
+                    new_name = st.text_input("New Product Name", value=c_name)
+                    new_type = st.text_input("New Product Type", value=c_type)
+                    new_lead = st.number_input("New Lead Time", min_value=0, value=c_lead)
+                    new_lot = st.number_input("New Lot Size", min_value=1, value=c_lot)
+                    new_onhand = st.number_input("New On-Hand Inventory", min_value=0, value=c_hand)
 
-                    new_name = st.text_input("Yeni Ürün Adı", value=cur_name)
-                    new_type = st.text_input("Yeni Ürün Tipi", value=cur_type)
-                    new_lead = st.number_input("Yeni Lead Time", min_value=0, value=cur_lead)
-                    new_lot = st.number_input("Yeni Lot Size", min_value=1, value=cur_lot)
-                    new_onhand = st.number_input("Yeni OnHandInventory", min_value=0, value=cur_onhand)
-
-                    if st.button("Ürünü Güncelle"):
-                        update_prod_query = """
+                    if st.button("Update Product"):
+                        upd_q = """
                         UPDATE Product
                         SET ProductName=?, ProductType=?, LeadTime=?, LotSize=?, OnHandInventory=?
                         WHERE ProductID=?
                         """
-                        run_query(update_prod_query, (new_name, new_type, new_lead, new_lot, new_onhand, sel_product_id))
-                        st.success("Ürün güncellendi.")
+                        run_query(upd_q, (new_name, new_type, new_lead, new_lot, new_onhand, selected_id))
+                        st.success("Product updated successfully.")
                         st.experimental_rerun()
 
-    # -----------------------------------------
-    # 5) BOM YÖNETİMİ
-    # -----------------------------------------
-    elif choice == "BOM Yönetimi":
-        st.subheader("BOM (Bill of Materials) Yönetimi")
+    # -------------------------------------------------------------------
+    # BOM MANAGEMENT
+    # -------------------------------------------------------------------
+    elif choice == "BOM Management":
+        st.subheader("BOM (Bill of Materials) Management")
 
-        # Mevcut ürünleri al
+        # Retrieve all products for the parent-child relationship
         product_rows = run_query("SELECT ProductID, ProductName FROM Product;")
-        product_dict = {f"{r[1]} (ID:{r[0]})": r[0] for r in product_rows}
+        prod_dict = {f"{r[1]} (ID: {r[0]})": r[0] for r in product_rows}
 
         with st.form("bom_form"):
-            st.write("### Yeni BOM Kaydı Ekle")
-            parent_selected = st.selectbox("Parent Ürün", list(product_dict.keys()))
-            child_selected = st.selectbox("Child Ürün", list(product_dict.keys()))
-            quantity = st.number_input("Gerekli Miktar (Quantity)", min_value=1.0, value=1.0)
-            level = st.number_input("Seviye (Level)", min_value=0, value=1)
-            bom_submitted = st.form_submit_button("Kaydet")
+            st.write("### Add a New BOM Entry")
+            parent_sel = st.selectbox("Parent Product", list(prod_dict.keys()))
+            child_sel = st.selectbox("Child Product", list(prod_dict.keys()))
+            quantity = st.number_input("Quantity", min_value=0.1, value=1.0)
+            level = st.number_input("Level", min_value=0, value=1)
+            bom_submitted = st.form_submit_button("Add BOM Entry")
 
         if bom_submitted:
-            parent_id = product_dict[parent_selected]
-            child_id = product_dict[child_selected]
+            parent_id = prod_dict[parent_sel]
+            child_id = prod_dict[child_sel]
             if parent_id == child_id:
-                st.error("Parent ve Child ürün aynı olamaz.")
+                st.error("Parent and Child cannot be the same product.")
             else:
-                insert_query = """
+                ins_bom = """
                 INSERT INTO BOM (ParentProductID, ChildProductID, Quantity, Level)
                 VALUES (?, ?, ?, ?)
                 """
-                run_query(insert_query, (parent_id, child_id, quantity, level))
-                st.success("BOM kaydı eklendi.")
+                run_query(ins_bom, (parent_id, child_id, quantity, level))
+                st.success("BOM entry has been added.")
 
-        # Mevcut BOM kayıtlarını göster
-        st.write("### Mevcut BOM Kayıtları")
+        # Display existing BOM entries
+        st.write("### Existing BOM Entries")
         rows = run_query("""
-            SELECT b.BomID, p1.ProductName as Parent, p2.ProductName as Child, 
+            SELECT b.BomID, p1.ProductName AS Parent, p2.ProductName AS Child, 
                    b.Quantity, b.Level
             FROM BOM b
             JOIN Product p1 ON b.ParentProductID = p1.ProductID
@@ -259,55 +302,53 @@ def main():
         df_bom = pd.DataFrame(rows, columns=["BomID", "Parent", "Child", "Quantity", "Level"])
         st.dataframe(df_bom)
 
-        # (İsteğe bağlı) BOM güncelleme / silme fonksiyonlarını da benzer şekilde ekleyebilirsiniz.
-
-    # -----------------------------------------
-    # 6) DEMAND/INVENTORY
-    # -----------------------------------------
+    # -------------------------------------------------------------------
+    # DEMAND / INVENTORY
+    # -------------------------------------------------------------------
     elif choice == "Demand/Inventory":
-        st.subheader("Demand / Inventory (Talep ve Stok Verileri)")
+        st.subheader("Demand / Inventory Management")
 
-        # Plan/Period/Product seçimleri
+        # Plan / Period / Product for new entries
         plan_rows = run_query("SELECT PlanID, PlanName FROM Plan;")
-        plan_dict = {f"{r[1]} (ID:{r[0]})": r[0] for r in plan_rows}
+        plan_dict = {f"{p[1]} (ID: {p[0]})": p[0] for p in plan_rows}
 
         period_rows = run_query("SELECT PeriodID, StartDate, EndDate FROM Period;")
         period_dict = {f"Period {r[0]} ({r[1]} - {r[2]})": r[0] for r in period_rows}
 
         product_rows = run_query("SELECT ProductID, ProductName FROM Product;")
-        product_dict = {f"{r[1]} (ID:{r[0]})": r[0] for r in product_rows}
+        product_dict = {f"{r[1]} (ID: {r[0]})": r[0] for r in product_rows}
 
-        with st.form("demandinventory_form"):
-            st.write("### Yeni Talep/Stok Kaydı Ekle")
-            selected_plan = st.selectbox("Plan Seçiniz", list(plan_dict.keys()))
-            selected_period = st.selectbox("Period Seçiniz", list(period_dict.keys()))
-            selected_product = st.selectbox("Ürün Seçiniz", list(product_dict.keys()))
+        with st.form("demand_form"):
+            st.write("### Add Demand/Inventory Record")
+            sel_plan = st.selectbox("Select Plan", list(plan_dict.keys()))
+            sel_period = st.selectbox("Select Period", list(period_dict.keys()))
+            sel_product = st.selectbox("Select Product", list(product_dict.keys()))
             gross_req = st.number_input("Gross Requirements", min_value=0.0, value=0.0)
-            scheduled_receipts = st.number_input("Scheduled Receipts", min_value=0.0, value=0.0)
-            projected_inventory = st.number_input("Projected Inventory", min_value=0.0, value=0.0)
+            sched_receipts = st.number_input("Scheduled Receipts", min_value=0.0, value=0.0)
+            proj_inv = st.number_input("Projected Inventory", min_value=0.0, value=0.0)
             net_req = st.number_input("Net Requirement", min_value=0.0, value=0.0)
             planned_order = st.number_input("Planned Order Releases", min_value=0.0, value=0.0)
-            dem_submitted = st.form_submit_button("Kaydet")
+            demand_submitted = st.form_submit_button("Add Record")
 
-        if dem_submitted:
-            plan_id = plan_dict[selected_plan]
-            period_id = period_dict[selected_period]
-            product_id = product_dict[selected_product]
+        if demand_submitted:
+            plan_id = plan_dict[sel_plan]
+            period_id = period_dict[sel_period]
+            product_id = product_dict[sel_product]
 
-            insert_query = """
+            ins_demand = """
             INSERT INTO DemandInventory 
-            (PlanID, PeriodID, ProductID,
+            (PlanID, PeriodID, ProductID, 
              GrossRequirements, ScheduledReceipts, 
              ProjectedInventory, NetRequirement, PlannedOrderReleases)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """
-            run_query(insert_query, (plan_id, period_id, product_id,
-                                     gross_req, scheduled_receipts,
-                                     projected_inventory, net_req, planned_order))
-            st.success("Kayıt eklendi.")
+            run_query(ins_demand, (plan_id, period_id, product_id,
+                                   gross_req, sched_receipts,
+                                   proj_inv, net_req, planned_order))
+            st.success("Demand/Inventory record has been added.")
 
-        # Mevcut kayıtları göster
-        st.write("### Mevcut DemandInventory Kayıtları")
+        # Display existing Demand/Inventory
+        st.write("### Existing DemandInventory Records")
         rows = run_query("""
             SELECT RecordID, PlanID, PeriodID, ProductID,
                    GrossRequirements, ScheduledReceipts,
@@ -315,26 +356,26 @@ def main():
             FROM DemandInventory
         """)
         df_di = pd.DataFrame(rows, columns=[
-            "RecordID", "PlanID", "PeriodID", "ProductID",
-            "GrossReq", "ScheduledReceipts", "ProjInventory", "NetReq", "PlannedOrder"
+            "RecordID","PlanID","PeriodID","ProductID",
+            "GrossReq","ScheduledReceipts","ProjInventory","NetReq","PlannedOrder"
         ])
         st.dataframe(df_di)
 
-        # (İsteğe bağlı) Seçip güncelleme/silme mantığı eklenebilir.
+    # -------------------------------------------------------------------
+    # MRP CALCULATION
+    # -------------------------------------------------------------------
+    elif choice == "MRP Calculation":
+        st.subheader("MRP Calculation")
 
-    # -----------------------------------------
-    # 7) MRP HESAPLAMA
-    # -----------------------------------------
-    elif choice == "MRP Hesaplama":
-        st.subheader("MRP Hesaplaması")
-        st.write("""
-        Basit MRP hesaplamaları (Net Requirement = max(0, GrossReq - (ProjInventory + SchedReceipts))
-        ve PlannedOrder = NetRequirement [lot-for-lot]) şeklinde güncellenebilir.
+        st.markdown("""
+        Here we perform a simple MRP logic:
+        - **NetRequirement** = max(0, GrossRequirements - (ProjectedInventory + ScheduledReceipts))
+        - **PlannedOrderReleases** = NetRequirement (assuming lot-for-lot)
         """)
 
-        if st.button("MRP Sorgularını Çalıştır"):
-            # NetRequirement hesapla
-            update_query_netreq = """
+        if st.button("Run MRP Calculation"):
+            # Update NetRequirement
+            net_req_query = """
             UPDATE DemandInventory
             SET NetRequirement = CASE
                 WHEN (GrossRequirements - (ProjectedInventory + ScheduledReceipts)) > 0
@@ -342,18 +383,18 @@ def main():
                 ELSE 0
             END
             """
-            run_query(update_query_netreq)
+            run_query(net_req_query)
 
-            # PlannedOrderReleases = NetRequirement
-            update_query_planned = """
+            # Update PlannedOrderReleases = NetRequirement
+            plan_release_query = """
             UPDATE DemandInventory
             SET PlannedOrderReleases = NetRequirement
             """
-            run_query(update_query_planned)
+            run_query(plan_release_query)
 
-            st.success("MRP hesaplamaları tamamlandı.")
+            st.success("MRP calculation completed.")
 
-        # Sonuçları göster
+        # Display results
         rows = run_query("""
             SELECT RecordID, PlanID, PeriodID, ProductID,
                    GrossRequirements, ScheduledReceipts,
@@ -367,21 +408,19 @@ def main():
         ])
         st.dataframe(df_res)
 
-    # -----------------------------------------
-    # 8) HAKKINDA
-    # -----------------------------------------
+    # -------------------------------------------------------------------
+    # ABOUT
+    # -------------------------------------------------------------------
     else:
-        st.subheader("Hakkında")
-        st.write("""
-        **Bu proje**, IE 442 dersi kapsamında geliştirilen basit bir MRP (Material Requirements Planning)
-        uygulamasıdır. Streamlit kullanarak veritabanını (SQLite) hem yönetiyor hem de 
-        hesaplamaları tetikleyebiliyoruz.
+        st.subheader("About")
+        st.markdown("""
+        **This project** is a simple MRP (Material Requirements Planning) system 
+        created for illustrative or educational purposes.  
         
-        ### Temel Özellikler
-        - Plan, Period, Product, BOM tabloları
-        - Demand/Inventory tablolarında Gross Req, Net Req, vb. sütunlar
-        - Basit MRP hesaplaması (lot-for-lot)
-        - Streamlit formlarıyla ekleme / güncelleme
+        - **Database**: SQLite  
+        - **Interface**: Streamlit  
+        - **Features**: Manage Plans, Periods, Products, BOM, Demand/Inventory, 
+                       and run basic MRP calculations (lot-for-lot).
         """)
 
 if __name__ == "__main__":

@@ -1,5 +1,3 @@
--- create_tables.sql
-
 PRAGMA foreign_keys = ON;
 
 DROP TABLE IF EXISTS DemandInventory;
@@ -8,9 +6,6 @@ DROP TABLE IF EXISTS Product;
 DROP TABLE IF EXISTS Period;
 DROP TABLE IF EXISTS Plan;
 
-/* ----------------------
-   1) Plan Tablosu
------------------------ */
 CREATE TABLE IF NOT EXISTS Plan (
     PlanID INTEGER PRIMARY KEY AUTOINCREMENT,
     PlanName TEXT NOT NULL,
@@ -19,9 +14,6 @@ CREATE TABLE IF NOT EXISTS Plan (
     PlanningHorizon INTEGER NOT NULL
 );
 
-/* ----------------------
-   2) Period Tablosu
------------------------ */
 CREATE TABLE IF NOT EXISTS Period (
     PeriodID INTEGER PRIMARY KEY AUTOINCREMENT,
     PlanID INTEGER,
@@ -31,21 +23,15 @@ CREATE TABLE IF NOT EXISTS Period (
     FOREIGN KEY (PlanID) REFERENCES Plan(PlanID)
 );
 
-/* ----------------------
-   3) Product Tablosu
------------------------ */
 CREATE TABLE IF NOT EXISTS Product (
     ProductID INTEGER PRIMARY KEY AUTOINCREMENT,
     ProductName TEXT NOT NULL,
-    ProductType TEXT NOT NULL,          -- 'FinishedGood', 'RawMaterial', vs.
+    ProductType TEXT NOT NULL,
     LeadTime INTEGER NOT NULL DEFAULT 0,
     LotSize INTEGER NOT NULL DEFAULT 1,
     OnHandInventory INTEGER NOT NULL DEFAULT 0
 );
 
-/* ----------------------
-   4) BOM (Bill of Materials) Tablosu
------------------------ */
 CREATE TABLE IF NOT EXISTS BOM (
     BomID INTEGER PRIMARY KEY AUTOINCREMENT,
     ParentProductID INTEGER NOT NULL,
@@ -56,9 +42,6 @@ CREATE TABLE IF NOT EXISTS BOM (
     FOREIGN KEY (ChildProductID) REFERENCES Product(ProductID)
 );
 
-/* ----------------------
-   5) DemandInventory Tablosu
------------------------ */
 CREATE TABLE IF NOT EXISTS DemandInventory (
     RecordID INTEGER PRIMARY KEY AUTOINCREMENT,
     PlanID INTEGER NOT NULL,
