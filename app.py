@@ -45,10 +45,9 @@ def show_existing_tables():
         st.write("No tables found in the database.")
 
 def main():
-    st.title("Enhanced MRP System - Streamlit Interface")
     st.title("MRP Project")
-    st.markdown("### *Eylül Rana Öztekin*") 
-    st.write("Welcome to the MRP System!")
+    st.markdown("### *Eylül Rana Öztekin*")
+    st.markdown("## *2019402126*")
 
     # Ensure DB is initialized
     init_db_if_needed()
