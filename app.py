@@ -62,7 +62,7 @@ def main():
         "MRP Calculation",
         "About"
     ]
-    choice = st.sidebar.selectbox("Menu", menu)
+    choice = st.sidebar.radio("Menu", menu)
 
     # -------------------------------------------------------------------
     # HOME PAGE
