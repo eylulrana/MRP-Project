@@ -71,6 +71,14 @@ def main():
     # -------------------------------------------------------------------
     if choice == "Home":
         st.write("Welcome to the MRP System!")
+        
+        # Reset Database butonu
+        if st.button("Reset Database & Load Test Data"):
+            from db import reset_database
+            reset_database()
+            st.success("Database has been reset and test data loaded!")
+            st.experimental_rerun()
+        
         st.markdown("""
         This interface allows you to manage and explore the database
         for a simple Material Requirements Planning (MRP) application.

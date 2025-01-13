@@ -1,5 +1,6 @@
 # db.py
 import sqlite3
+import os
 
 DB_NAME = "mrp.db"
 
@@ -8,9 +9,23 @@ def get_connection():
     Returns a connection to the SQLite database.
     Enables foreign key constraints.
     """
-    conn = sqlite3.connect(DB_NAME)
+    # Veritabanı dosyasını proje klasöründe oluştur
+    db_path = os.path.join(os.path.dirname(__file__), DB_NAME)
+    conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+def reset_database():
+    """Veritabanını sıfırlar ve yeniden oluşturur."""
+    # Eğer varsa eski veritabanını sil
+    if os.path.exists(DB_NAME):
+        os.remove(DB_NAME)
+    
+    # Tabloları oluştur
+    execute_script_from_file("sql/create_tables.sql")
+    
+    # Test verilerini ekle
+    execute_script_from_file("sql/insert_test_data.sql")
 
 def run_query(sql, params=()):
     """
