@@ -78,7 +78,7 @@ def main():
                 from db import reset_database
                 if reset_database():
                     st.success("Database has been reset and test data loaded!")
-                    st.experimental_rerun()
+                    st.rerun()  # experimental_rerun() yerine rerun()
                 else:
                     st.error("Failed to reset database. Check the logs for details.")
             except Exception as e:
@@ -157,7 +157,7 @@ def main():
                         """
                         run_query(update_query, (new_name, new_start, new_type, new_horizon, selected_plan_id))
                         st.success("Plan updated successfully.")
-                        st.experimental_rerun()
+                        st.rerun()  # experimental_rerun() yerine rerun()
 
     # -------------------------------------------------------------------
     # PERIOD MANAGEMENT
@@ -218,7 +218,7 @@ def main():
                         """
                         run_query(upd_query, (new_seq, new_start, new_end, selected_period_id))
                         st.success("Period updated successfully.")
-                        st.experimental_rerun()
+                        st.rerun()  # experimental_rerun() yerine rerun()
 
     # -------------------------------------------------------------------
     # PRODUCT MANAGEMENT
