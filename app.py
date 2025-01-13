@@ -86,6 +86,10 @@ def main():
         """)
         # Show existing tables (if you want to hide Product table data, see the function above).
         show_existing_tables()
+        if st.button("Load Test Data"):
+            execute_script_from_file("sql/insert_test_data.sql")
+            st.success("Test data from 'insert_test_data.sql' has been loaded into the database.")
+            st.experimental_rerun()
 
     # -------------------------------------------------------------------
     # PLAN MANAGEMENT
