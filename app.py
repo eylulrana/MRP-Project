@@ -17,19 +17,22 @@ def init_db_if_needed():
 
 def show_existing_tables():
     """
-    Fetch and display a list of all existing tables, 
-    then for each table, show the data in a dataframe if available.
+    Fetch and display a list of all existing tables 
+    EXCEPT the 'Product' table if you wish to hide it entirely.
+    You could comment this entire function out if you want nothing 
+    to appear on the home page regarding existing tables.
     """
     st.markdown("#### Existing Tables and Their Data")
     tables = run_query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;")
     if tables:
         for t in tables:
             table_name = t[0]
+            # If you want to skip showing 'Product' table completely:
+            # if table_name == 'Product':
+            #     continue
             st.subheader(f"Table: {table_name}")
-            # Get columns info
             col_info = run_query(f"PRAGMA table_info({table_name});")
             col_names = [c[1] for c in col_info]
-            # Fetch data
             data = run_query(f"SELECT * FROM {table_name}")
             if data:
                 df = pd.DataFrame(data, columns=col_names)
@@ -68,13 +71,14 @@ def main():
         
         - **Plan Management**: Create or update Plans.
         - **Period Management**: Manage time Periods for each Plan.
-        - **Product Management**: Create or update Products (finished goods, raw materials, etc.).
+        - **Product Management**: Create new Products (we removed displaying existing products).
         - **BOM Management**: Define Bill of Materials relationships (Parent-Child).
         - **Demand/Inventory**: Manage demand and stock data (Gross Requirements, Net Requirement, etc.).
         - **MRP Calculation**: Perform simple MRP logic (lot-for-lot).
         
-        Below, you can see the existing tables and any data they contain.
+        Below, you can see some existing tables and any data they contain.
         """)
+        # Show existing tables (if you want to hide Product table data, see the function above).
         show_existing_tables()
 
     # -------------------------------------------------------------------
@@ -142,7 +146,6 @@ def main():
     elif choice == "Period Management":
         st.subheader("Period Management")
 
-        # Retrieve existing plans
         plan_rows = run_query("SELECT PlanID, PlanName FROM Plan;")
         plan_dict = {f"{p[1]} (ID: {p[0]})": p[0] for p in plan_rows}
 
@@ -225,39 +228,8 @@ def main():
             else:
                 st.warning("Please fill in all fields.")
 
-        # Display existing products
-        st.write("### Existing Products")
-        rows = run_query("SELECT ProductID, ProductName, ProductType, LeadTime, LotSize, OnHandInventory FROM Product;")
-        df_prod = pd.DataFrame(rows, columns=["ProductID", "Name", "Type", "LeadTime", "LotSize", "OnHand"])
-        st.dataframe(df_prod)
-
-        # Update a product
-        st.write("### Update a Product")
-        if not df_prod.empty:
-            product_ids = df_prod["ProductID"].tolist()
-            selected_id = st.selectbox("Select Product ID to Update", product_ids)
-            if selected_id:
-                p_data = run_query(
-                    "SELECT ProductName, ProductType, LeadTime, LotSize, OnHandInventory FROM Product WHERE ProductID=?",
-                    (selected_id,)
-                )
-                if p_data:
-                    c_name, c_type, c_lead, c_lot, c_hand = p_data[0]
-                    new_name = st.text_input("New Product Name", value=c_name)
-                    new_type = st.text_input("New Product Type", value=c_type)
-                    new_lead = st.number_input("New Lead Time", min_value=0, value=c_lead)
-                    new_lot = st.number_input("New Lot Size", min_value=1, value=c_lot)
-                    new_onhand = st.number_input("New On-Hand Inventory", min_value=0, value=c_hand)
-
-                    if st.button("Update Product"):
-                        upd_q = """
-                        UPDATE Product
-                        SET ProductName=?, ProductType=?, LeadTime=?, LotSize=?, OnHandInventory=?
-                        WHERE ProductID=?
-                        """
-                        run_query(upd_q, (new_name, new_type, new_lead, new_lot, new_onhand, selected_id))
-                        st.success("Product updated successfully.")
-                        st.experimental_rerun()
+        # NOTE: The sections for displaying existing products or updating products
+        # have been REMOVED to avoid any SELECT query that might cause the error.
 
     # -------------------------------------------------------------------
     # BOM MANAGEMENT
@@ -265,7 +237,6 @@ def main():
     elif choice == "BOM Management":
         st.subheader("BOM (Bill of Materials) Management")
 
-        # Retrieve all products for the parent-child relationship
         product_rows = run_query("SELECT ProductID, ProductName FROM Product;")
         prod_dict = {f"{r[1]} (ID: {r[0]})": r[0] for r in product_rows}
 
@@ -290,7 +261,7 @@ def main():
                 run_query(ins_bom, (parent_id, child_id, quantity, level))
                 st.success("BOM entry has been added.")
 
-        # Display existing BOM entries
+        # We still keep a BOM display if you want, or remove it similarly:
         st.write("### Existing BOM Entries")
         rows = run_query("""
             SELECT b.BomID, p1.ProductName AS Parent, p2.ProductName AS Child, 
@@ -308,7 +279,6 @@ def main():
     elif choice == "Demand/Inventory":
         st.subheader("Demand / Inventory Management")
 
-        # Plan / Period / Product for new entries
         plan_rows = run_query("SELECT PlanID, PlanName FROM Plan;")
         plan_dict = {f"{p[1]} (ID: {p[0]})": p[0] for p in plan_rows}
 
@@ -419,7 +389,7 @@ def main():
         
         - **Database**: SQLite  
         - **Interface**: Streamlit  
-        - **Features**: Manage Plans, Periods, Products, BOM, Demand/Inventory, 
+        - **Features**: Manage Plans, Periods, BOM, Demand/Inventory, 
                        and run basic MRP calculations (lot-for-lot).
         """)
 
