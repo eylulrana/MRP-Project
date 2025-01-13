@@ -1,7 +1,7 @@
 # db.py
 import sqlite3
 
-DB_NAME = "mrp.db"  # veya sizin veritabanı dosyanız
+DB_NAME = "mrp.db"  # Dilediğiniz isimde olabilir, my_mrp.db vs.
 
 def get_connection():
     conn = sqlite3.connect(DB_NAME)
