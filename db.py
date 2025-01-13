@@ -16,16 +16,22 @@ def get_connection():
     return conn
 
 def reset_database():
-    """Veritabanını sıfırlar ve yeniden oluşturur."""
-    # Eğer varsa eski veritabanını sil
-    if os.path.exists(DB_NAME):
-        os.remove(DB_NAME)
-    
-    # Tabloları oluştur
-    execute_script_from_file("sql/create_tables.sql")
-    
-    # Test verilerini ekle
-    execute_script_from_file("sql/insert_test_data.sql")
+    """Veritabanını sıfırla ve yeniden oluştur"""
+    try:
+        # Veritabanını sil
+        db_path = os.path.join(os.path.dirname(__file__), DB_NAME)
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        
+        # Tabloları oluştur
+        execute_script_from_file("sql/create_tables.sql")
+        
+        # Test verilerini ekle
+        execute_script_from_file("sql/insert_test_data.sql")
+        return True
+    except Exception as e:
+        print(f"Error resetting database: {e}")
+        return False
 
 def run_query(sql, params=()):
     """
@@ -33,21 +39,32 @@ def run_query(sql, params=()):
     with optional parameters. Returns all fetched rows (if any).
     """
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(sql, params)
-    rows = cur.fetchall()
-    conn.commit()
-    conn.close()
-    return rows
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+        conn.commit()
+        return rows
+    finally:
+        conn.close()
 
 def execute_script_from_file(filepath):
-    """
-    Reads and executes all SQL statements from a file 
-    (e.g., create_tables.sql). Useful for initial setup.
-    """
+    """SQL dosyasından script çalıştırma"""
+    # Tam dosya yolunu oluştur
+    full_path = os.path.join(os.path.dirname(__file__), filepath)
+    
+    if not os.path.exists(full_path):
+        raise FileNotFoundError(f"SQL file not found: {full_path}")
+        
     conn = get_connection()
-    with open(filepath, 'r', encoding='utf-8') as f:
-        script = f.read()
-    conn.executescript(script)
-    conn.commit()
-    conn.close()
+    try:
+        with open(full_path, 'r', encoding='utf-8') as f:
+            script = f.read()
+        conn.executescript(script)
+        conn.commit()
+    except Exception as e:
+        print(f"Error executing SQL script: {e}")
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

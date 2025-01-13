@@ -74,10 +74,15 @@ def main():
         
         # Reset Database butonu
         if st.button("Reset Database & Load Test Data"):
-            from db import reset_database
-            reset_database()
-            st.success("Database has been reset and test data loaded!")
-            st.experimental_rerun()
+            try:
+                from db import reset_database
+                if reset_database():
+                    st.success("Database has been reset and test data loaded!")
+                    st.experimental_rerun()
+                else:
+                    st.error("Failed to reset database. Check the logs for details.")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
         
         st.markdown("""
         This interface allows you to manage and explore the database
@@ -94,10 +99,6 @@ def main():
         """)
         # Show existing tables (if you want to hide Product table data, see the function above).
         show_existing_tables()
-        if st.button("Load Test Data"):
-            execute_script_from_file("sql/insert_test_data.sql")
-            st.success("Test data from 'insert_test_data.sql' has been loaded into the database.")
-            st.experimental_rerun()
 
     # -------------------------------------------------------------------
     # PLAN MANAGEMENT
