@@ -1,20 +1,14 @@
 -- insert_sample_data.sql
 
-INSERT INTO Plan (PlanID, PlanName, PlanStartDate, PlanEndDate, PlanningHorizon, PlanStatus)
+INSERT INTO Plan (PlanID, PlanName, StartDate, PlanEndDate, PeriodType, PlanningHorizon, PlanStatus)
 VALUES 
-(1, '2025_MainPlan', '2025-01-01', '2025-12-31', 12, 'Draft');
+(1, '2025_MainPlan', '2025-01-01', '2025-12-31', 'Weekly', 12, 'Draft');
 
-INSERT INTO Period (PeriodID, PeriodSequence, PeriodStartDate, PeriodEndDate)
+INSERT INTO Period (PeriodID, PlanID, PeriodSequence, StartDate, EndDate)
 VALUES
-(1, 1, '2025-01-01', '2025-01-07'),
-(2, 2, '2025-01-08', '2025-01-14'),
-(3, 3, '2025-01-15', '2025-01-21');
-
-INSERT INTO PlanPeriod (PlanID, PeriodID, CapacityConstraint, Notes)
-VALUES
-(1, 1, 1000.0, 'Week1 capacity'),
-(1, 2, 1200.0, 'Week2 capacity'),
-(1, 3, 900.0,  'Week3 capacity');
+(1, 1, 1, '2025-01-01', '2025-01-07'),
+(2, 1, 2, '2025-01-08', '2025-01-14'),
+(3, 1, 3, '2025-01-15', '2025-01-21');
 
 INSERT INTO Product (ProductID, ProductName, ProductType, LeadTime, LotSize, OnHandInventory)
 VALUES

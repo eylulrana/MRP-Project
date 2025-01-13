@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS Plan (
     PlanName TEXT NOT NULL,
     StartDate TEXT NOT NULL,
     PeriodType TEXT NOT NULL,
-    PlanningHorizon INTEGER NOT NULL
+    PlanningHorizon INTEGER NOT NULL,
+    PlanEndDate TEXT,
+    PlanStatus TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Period (
@@ -55,4 +57,18 @@ CREATE TABLE IF NOT EXISTS DemandInventory (
     FOREIGN KEY (PlanID) REFERENCES Plan(PlanID),
     FOREIGN KEY (PeriodID) REFERENCES Period(PeriodID),
     FOREIGN KEY (ProductID) REFERENCES Product(ProductID)
+);
+
+CREATE TABLE IF NOT EXISTS ProductPeriod (
+    PPID INTEGER PRIMARY KEY AUTOINCREMENT,
+    ProductID INTEGER NOT NULL,
+    PeriodID INTEGER NOT NULL,
+    PlanID INTEGER NOT NULL,
+    GrossRequirements REAL NOT NULL DEFAULT 0,
+    ScheduledReceipts REAL NOT NULL DEFAULT 0,
+    NetRequirement REAL NOT NULL DEFAULT 0,
+    PlannedOrderReleases REAL NOT NULL DEFAULT 0,
+    FOREIGN KEY (ProductID) REFERENCES Product(ProductID),
+    FOREIGN KEY (PeriodID) REFERENCES Period(PeriodID),
+    FOREIGN KEY (PlanID) REFERENCES Plan(PlanID)
 );
