@@ -16,6 +16,8 @@ def init_db_if_needed():
         # Tables not found, create them from the script
         execute_script_from_file("sql/create_tables.sql")
         st.info("Database tables have been created.")
+        execute_script_from_file("sql/insert_test_data.sql")
+        st.info("Test data has been inserted.")
 
 def show_existing_tables():
     """
