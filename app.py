@@ -46,6 +46,9 @@ def show_existing_tables():
 
 def main():
     st.title("Enhanced MRP System - Streamlit Interface")
+    st.title("MRP Project")
+    st.markdown("### *Eylül Rana Öztekin*") 
+    st.write("Welcome to the MRP System!")
 
     # Ensure DB is initialized
     init_db_if_needed()
