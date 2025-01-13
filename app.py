@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 from db import run_query, execute_script_from_file
 
+st.set_page_config(page_title="MRP Project")
+
 def init_db_if_needed():
     """
     Checks if the 'Product' table exists. If it doesn't,
